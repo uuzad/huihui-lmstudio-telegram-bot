@@ -1,10 +1,8 @@
 services:
   - type: web
     name: huihui-lmstudio-telegram-bot
-    runtime: python
+    runtime: docker
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn bot:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: TELEGRAM_TOKEN
@@ -16,4 +14,8 @@ services:
       - key: LM_STUDIO_API_KEY
         sync: false
       - key: LM_STUDIO_MODEL
-        value: huihui-qwen3.8-27b-abliterated
+        value: auto
+      - key: MAX_HISTORY_MESSAGES
+        value: "20"
+      - key: REQUEST_TIMEOUT
+        value: "180"
