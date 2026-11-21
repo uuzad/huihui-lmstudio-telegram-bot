@@ -1,64 +1,66 @@
-# Huihui Qwen Telegram Bot (LM Studio)
+# Private AI Telegram Bot
 
-Личный Telegram-бот, который отправляет сообщения в локальную модель LM Studio через OpenAI-compatible API.
+Личный Telegram-бот: Telegram → Render → Cloudflare Tunnel → FreeLLMAPI на твоём ПК.
 
-## Как работает
+Бот отвечает только Telegram-пользователю, чей числовой ID указан в \`OWNER_ID\`. История диалога хранится в памяти процесса и очищается при перезапуске.
 
-Telegram → Render → Cloudflare Tunnel → LM Studio на твоём ПК → ответ в Telegram.
+## Файлы проекта
 
-Бот разрешает общение только Telegram-пользователю с `OWNER_ID`.
+- \`bot.py\` — Telegram-бот и FastAPI health endpoint.
+- \`requirements.txt\` — зависимости Python.
+- \`Dockerfile\` — сборка контейнера для Render.
+- \`render.yaml\` — настройки Render Blueprint.
+- \`.env.example\` — пример переменных окружения без секретов.
 
-## 1. Подготовь LM Studio на ПК
+## Настройка FreeLLMAPI на Windows
 
-1. Загрузи модель в LM Studio.
-2. Открой Developer / Local Server и запусти сервер.
-3. Убедись, что OpenAI-compatible API доступен по адресу `http://127.0.0.1:1234/v1`.
-4. Включи API authentication и создай API key.
-5. Запусти Cloudflare Quick Tunnel на локальный порт LM Studio:
+1. Запусти FreeLLMAPI на своём ПК.
+2. Убедись, что OpenAI-compatible API доступен локально по адресу \`http://127.0.0.1:31415/v1\`.
+3. Включи API-ключ в FreeLLMAPI и сохрани его в переменную Render \`LM_STUDIO_API_KEY\`.
+4. Запусти PowerShell и выполни:
 
-   ```powershell
-   cloudflared tunnel --url http://localhost:1234
-   ```
+   \`\`\`powershell
+   cloudflared tunnel --url http://127.0.0.1:31415
+   \`\`\`
 
-6. Скопируй выданный HTTPS URL. Не публикуй API key и не отключай аутентификацию.
+5. Скопируй выданный HTTPS-адрес и добавь к нему \`/v1\`. Получившийся адрес укажи в Render как \`LM_STUDIO_BASE_URL\`.
 
-Важно: Quick Tunnel может выдавать новый адрес после перезапуска. Тогда обнови `LM_STUDIO_BASE_URL` в Render. Компьютер, LM Studio и tunnel должны оставаться включёнными.
+Не закрывай FreeLLMAPI и окно Cloudflare Tunnel, пока бот должен работать. Quick Tunnel выдаёт временный адрес; после перезапуска туннеля обнови переменную в Render.
 
-## 2. Создай Telegram-бота
+## Переменные Render
 
-Через BotFather создай бота и скопируй токен. Если старый токен когда-либо публиковался в чатах или логах, сначала отзови его через BotFather и используй новый.
-
-## 3. Загрузи проект на GitHub
-
-Создай пустой репозиторий и загрузи все файлы этого проекта. Не загружай `.env` и никогда не добавляй токены или API keys в код.
-
-## 4. Разверни на Render
-
-1. Создай на Render новый **Web Service** и подключи репозиторий.
-2. Render может определить настройки из `render.yaml`. Если нет:
-   - Build Command: `pip install -r requirements.txt`
-   - Start Command: `uvicorn bot:app --host 0.0.0.0 --port $PORT`
-3. Добавь Environment Variables:
-
-| Key | Value |
+| Переменная | Значение |
 |---|---|
-| `TELEGRAM_TOKEN` | токен Telegram-бота |
-| `OWNER_ID` | твой числовой Telegram ID |
-| `LM_STUDIO_BASE_URL` | адрес туннеля + `/v1` |
-| `LM_STUDIO_API_KEY` | API key из LM Studio |
-| `LM_STUDIO_MODEL` | `huihui-qwen3.8-27b-abliterated` |
+| \`TELEGRAM_TOKEN\` | Токен бота от BotFather |
+| \`OWNER_ID\` | Твой числовой Telegram ID |
+| \`LM_STUDIO_BASE_URL\` | HTTPS-адрес Cloudflare Tunnel с окончанием \`/v1\` |
+| \`LM_STUDIO_API_KEY\` | API-ключ FreeLLMAPI |
+| \`LM_STUDIO_MODEL\` | \`auto\` |
+| \`MAX_HISTORY_MESSAGES\` | Необязательно, по умолчанию \`20\` |
+| \`REQUEST_TIMEOUT\` | Необязательно, по умолчанию \`180\` |
 
-4. Запусти Deploy.
+## Локальный запуск
 
-## Команды бота
+Установи зависимости:
 
-- `/start` — начать работу
-- `/reset` — очистить историю диалога
-- `/model` — показать модель и адрес API
+\`\`\`powershell
+py -m pip install -r requirements.txt
+\`\`\`
 
-## Важные ограничения
+Задай переменные окружения и запусти:
 
-- История хранится в оперативной памяти Render и очищается при перезапуске.
-- Бесплатный Web Service на Render может засыпать при простое.
-- Если ПК выключен, LM Studio закрыта или Cloudflare Tunnel остановлен, модель будет недоступна.
-- Не публикуй токены Telegram, API key LM Studio или URL с секретами.
+\`\`\`powershell
+py -m uvicorn bot:app --host 0.0.0.0 --port 10000
+\`\`\`
+
+## Команды
+
+- \`/start\` — начать работу.
+- \`/reset\` — очистить историю.
+- \`/model\` — показать модель и адрес API.
+
+## Примечания
+
+- Render Free может засыпать после простоя, поэтому первый запрос иногда выполняется с задержкой.
+- Если ПК выключен, FreeLLMAPI закрыта или Cloudflare Tunnel остановлен, модель недоступна.
+- Не добавляй токены и API-ключи в GitHub. Храни их только в Environment Variables Render.
